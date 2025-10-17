@@ -34,25 +34,222 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Custom CSS - Modern, professional design
 st.markdown("""
     <style>
+    /* Import modern font */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    /* Global styles */
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* Main container */
+    .main {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-attachment: fixed;
+    }
+
+    .block-container {
+        padding: 2rem 3rem;
+        background: rgba(255, 255, 255, 0.98);
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        backdrop-filter: blur(10px);
+        margin: 2rem auto;
+        max-width: 1400px;
+    }
+
+    /* Header styling */
     .main-header {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #2E86AB;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-size: 3.5rem;
+        font-weight: 800;
         margin-bottom: 0.5rem;
+        letter-spacing: -1px;
+        text-align: center;
     }
+
     .sub-header {
-        font-size: 1.2rem;
-        color: #666;
-        margin-bottom: 2rem;
+        font-size: 1.3rem;
+        color: #64748b;
+        margin-bottom: 3rem;
+        text-align: center;
+        font-weight: 400;
     }
-    .metric-card {
-        background-color: #f0f2f6;
+
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem 1rem;
+    }
+
+    [data-testid="stSidebar"] * {
+        color: white !important;
+    }
+
+    [data-testid="stSidebar"] .stRadio label {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.8rem;
+        border-radius: 10px;
+        margin: 0.3rem 0;
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+    }
+
+    [data-testid="stSidebar"] .stRadio label:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateX(5px);
+    }
+
+    /* Button styling */
+    .stButton > button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 2.5rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    /* Metric cards */
+    [data-testid="stMetricValue"] {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #667eea;
+    }
+
+    [data-testid="stMetricLabel"] {
+        font-size: 0.9rem;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    /* Tabs styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 1rem;
+        background: transparent;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        padding: 1rem 2rem;
+        background: transparent;
+        border-radius: 10px 10px 0 0;
+        font-weight: 600;
+        color: #64748b;
+        transition: all 0.3s ease;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+    }
+
+    /* Success message */
+    .stAlert {
+        border-radius: 12px;
+        border-left: 4px solid #10b981;
+        background: #ecfdf5;
         padding: 1rem;
-        border-radius: 0.5rem;
+    }
+
+    /* Info box */
+    .stInfo {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        border-left: 4px solid #667eea;
+        border-radius: 12px;
+        padding: 1.5rem;
+    }
+
+    /* File uploader */
+    [data-testid="stFileUploader"] {
+        background: #f8fafc;
+        border: 2px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 2rem;
+        transition: all 0.3s ease;
+    }
+
+    [data-testid="stFileUploader"]:hover {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.05);
+    }
+
+    /* Expander */
+    .streamlit-expanderHeader {
+        background: #f8fafc;
+        border-radius: 10px;
+        font-weight: 600;
+        color: #334155;
+    }
+
+    /* Download button */
+    .stDownloadButton > button {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .stDownloadButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Slider */
+    .stSlider > div > div > div {
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    }
+
+    /* Divider */
+    hr {
+        margin: 2rem 0;
+        border: none;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+    }
+
+    /* Subheader styling */
+    h2, h3 {
+        color: #1e293b;
+        font-weight: 700;
+        margin-top: 2rem;
+    }
+
+    /* Features list */
+    ul {
+        padding-left: 1.5rem;
+    }
+
+    li {
         margin: 0.5rem 0;
+        color: #475569;
+    }
+
+    /* Code blocks */
+    code {
+        background: #f1f5f9;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        color: #667eea;
+        font-weight: 500;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -207,12 +404,33 @@ def analyze_ecg(signal: np.ndarray, fs: float, model: ArrhythmiaClassifier):
 
 
 def main():
-    # Header
-    st.markdown('<p class="main-header">🫀 BioSignal Analyzer</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">ECG Signal Analysis & Arrhythmia Detection</p>', unsafe_allow_html=True)
+    # Header with gradient and modern styling
+    st.markdown('''
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <h1 class="main-header">🫀 BioSignal Analyzer</h1>
+            <p class="sub-header">Advanced ECG Analysis & AI-Powered Arrhythmia Detection</p>
+            <div style="display: flex; justify-content: center; gap: 2rem; margin-top: 1.5rem;">
+                <span style="background: rgba(102, 126, 234, 0.1); padding: 0.5rem 1.5rem; border-radius: 20px; color: #667eea; font-weight: 600;">
+                    🔬 Signal Processing
+                </span>
+                <span style="background: rgba(102, 126, 234, 0.1); padding: 0.5rem 1.5rem; border-radius: 20px; color: #667eea; font-weight: 600;">
+                    🤖 Deep Learning
+                </span>
+                <span style="background: rgba(102, 126, 234, 0.1); padding: 0.5rem 1.5rem; border-radius: 20px; color: #667eea; font-weight: 600;">
+                    📊 Real-Time Analysis
+                </span>
+            </div>
+        </div>
+    ''', unsafe_allow_html=True)
 
-    # Sidebar
-    st.sidebar.title("📊 Options")
+    # Sidebar with modern styling
+    with st.sidebar:
+        st.markdown('''
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <h2 style="color: white; font-size: 1.8rem; margin-bottom: 0.5rem;">⚙️ Controls</h2>
+                <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">Configure your analysis</p>
+            </div>
+        ''', unsafe_allow_html=True)
 
     # Data source selection
     data_source = st.sidebar.radio(
@@ -263,25 +481,51 @@ def main():
 
     # Main content
     if signal is not None:
-        st.success(f"✅ Loaded signal: {len(signal)} samples at {fs} Hz ({len(signal)/fs:.1f} seconds)")
+        # Success message with modern styling
+        st.markdown(f'''
+            <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
+                        border-left: 4px solid #10b981;
+                        border-radius: 12px;
+                        padding: 1.2rem;
+                        margin: 2rem 0;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <span style="font-size: 2rem;">✅</span>
+                    <div>
+                        <strong style="color: #059669; font-size: 1.1rem;">Signal Loaded Successfully</strong>
+                        <p style="margin: 0.3rem 0 0 0; color: #047857;">
+                            {len(signal):,} samples • {fs} Hz • {len(signal)/fs:.1f} seconds duration
+                        </p>
+                    </div>
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
 
-        # Analyze
-        if st.button("🔬 Analyze ECG", type="primary"):
+        # Analyze button with enhanced styling
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔬 Analyze ECG Signal", type="primary", use_container_width=True):
             results = analyze_ecg(signal, fs, model)
 
-            # Display results in tabs
+            # Display results in modern tabs
             tab1, tab2, tab3, tab4, tab5 = st.tabs([
-                "📈 Signal", "💓 Heart Rate", "📊 HRV Analysis",
-                "🔬 Frequency Analysis", "🏥 Arrhythmia Detection"
+                "📈 Signal Visualization",
+                "💓 Heart Rate Metrics",
+                "📊 HRV Analysis",
+                "🔬 Frequency Domain",
+                "🏥 AI Detection"
             ])
 
             with tab1:
-                st.subheader("ECG Signal Analysis")
+                st.markdown("### 📈 ECG Signal Analysis")
+                st.markdown("<br>", unsafe_allow_html=True)
 
+                # Metric cards with better styling
                 col1, col2, col3 = st.columns(3)
-                col1.metric("Duration", f"{len(signal)/fs:.1f} s")
-                col2.metric("Sampling Rate", f"{fs} Hz")
-                col3.metric("R-peaks Detected", len(results['peaks']))
+                with col1:
+                    st.metric("⏱️ Duration", f"{len(signal)/fs:.1f} sec")
+                with col2:
+                    st.metric("📊 Sampling Rate", f"{fs:.0f} Hz")
+                with col3:
+                    st.metric("💓 R-peaks Found", f"{len(results['peaks'])}")
 
                 # ECG plot
                 fig_ecg = plot_ecg_signal(
@@ -399,31 +643,103 @@ def main():
             )
 
     else:
-        # Welcome screen
-        st.info("👆 Please upload an ECG file, use demo data, or generate synthetic data to begin analysis")
+        # Modern welcome screen
+        st.markdown('''
+            <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+                        border-radius: 16px;
+                        padding: 3rem 2rem;
+                        text-align: center;
+                        margin: 2rem 0;">
+                <h2 style="color: #667eea; margin-bottom: 1rem; font-size: 2rem;">
+                    👋 Welcome to BioSignal Analyzer
+                </h2>
+                <p style="color: #64748b; font-size: 1.1rem; margin-bottom: 2rem;">
+                    Upload an ECG file, use demo data, or generate synthetic signals to get started
+                </p>
+                <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+                    <span style="background: white; padding: 0.8rem 1.5rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        📁 Upload Files
+                    </span>
+                    <span style="background: white; padding: 0.8rem 1.5rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        📊 Use Demo Data
+                    </span>
+                    <span style="background: white; padding: 0.8rem 1.5rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        ⚡ Generate Synthetic
+                    </span>
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
 
-        st.markdown("""
-        ### Features
+        # Feature cards in columns
+        st.markdown("### ✨ Key Features")
+        st.markdown("<br>", unsafe_allow_html=True)
 
-        - **Signal Processing**: Bandpass filtering, baseline wander removal, notch filtering
-        - **Peak Detection**: Pan-Tompkins algorithm for R-peak detection
-        - **Heart Rate Analysis**: Instantaneous HR, RR intervals, tachogram
-        - **HRV Analysis**: Time and frequency domain metrics (SDNN, RMSSD, pNN50, LF/HF ratio)
-        - **Frequency Analysis**: Power spectral density, FFT analysis
-        - **Arrhythmia Detection**: CNN-based classification (Normal, AFib, PVC, PAC, Other)
+        col1, col2, col3 = st.columns(3)
 
-        ### Supported Data Formats
+        with col1:
+            st.markdown('''
+                <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); height: 100%;">
+                    <div style="font-size: 2.5rem; margin-bottom: 1rem;">🔬</div>
+                    <h4 style="color: #667eea; margin-bottom: 0.8rem;">Signal Processing</h4>
+                    <p style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">
+                        Advanced filtering techniques including bandpass, notch, and baseline wander removal
+                    </p>
+                </div>
+            ''', unsafe_allow_html=True)
 
-        - **CSV**: Simple format with signal values (auto-detects column)
-        - **WFDB**: MIT-BIH standard format (.dat, .hea)
-        - **Demo**: Pre-loaded example data
-        - **Synthetic**: Generated ECG for testing
+        with col2:
+            st.markdown('''
+                <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); height: 100%;">
+                    <div style="font-size: 2.5rem; margin-bottom: 1rem;">💓</div>
+                    <h4 style="color: #667eea; margin-bottom: 0.8rem;">HRV Analysis</h4>
+                    <p style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">
+                        Complete HRV metrics including SDNN, RMSSD, pNN50, and frequency domain analysis
+                    </p>
+                </div>
+            ''', unsafe_allow_html=True)
 
-        ### About
+        with col3:
+            st.markdown('''
+                <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); height: 100%;">
+                    <div style="font-size: 2.5rem; margin-bottom: 1rem;">🤖</div>
+                    <h4 style="color: #667eea; margin-bottom: 0.8rem;">AI Detection</h4>
+                    <p style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">
+                        Deep learning CNN trained on MIT-BIH database for arrhythmia classification
+                    </p>
+                </div>
+            ''', unsafe_allow_html=True)
 
-        This tool uses deep learning (1D CNN) trained on the MIT-BIH Arrhythmia Database
-        to automatically detect and classify cardiac arrhythmias from ECG signals.
-        """)
+        st.markdown("<br><br>", unsafe_allow_html=True)
+
+        # Supported formats
+        st.markdown("### 📁 Supported Formats")
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown('''
+                <div style="background: #f8fafc; padding: 1.2rem; border-radius: 10px; border-left: 4px solid #667eea;">
+                    <h5 style="color: #334155; margin-bottom: 0.8rem;">📄 File Formats</h5>
+                    <ul style="margin: 0; padding-left: 1.2rem; color: #64748b;">
+                        <li>CSV (auto-detects columns)</li>
+                        <li>WFDB (.dat, .hea files)</li>
+                        <li>EDF (European Data Format)</li>
+                    </ul>
+                </div>
+            ''', unsafe_allow_html=True)
+
+        with col2:
+            st.markdown('''
+                <div style="background: #f8fafc; padding: 1.2rem; border-radius: 10px; border-left: 4px solid #764ba2;">
+                    <h5 style="color: #334155; margin-bottom: 0.8rem;">🎯 Analysis Types</h5>
+                    <ul style="margin: 0; padding-left: 1.2rem; color: #64748b;">
+                        <li>R-peak detection (Pan-Tompkins)</li>
+                        <li>Heart rate variability</li>
+                        <li>Arrhythmia classification</li>
+                    </ul>
+                </div>
+            ''', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
