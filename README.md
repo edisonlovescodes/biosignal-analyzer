@@ -44,7 +44,7 @@ A comprehensive web application for ECG signal analysis and automatic arrhythmia
 
 ## Demo
 
-🔗 **[Live Demo](https://biosignal-analyzer.onrender.com)** (Coming soon)
+🔗 **[Live Demo](https://edisonlovescodes-biosignal-analyzer.streamlit.app)** (Deploying now...)
 
 ## Installation
 
@@ -58,7 +58,7 @@ A comprehensive web application for ECG signal analysis and automatic arrhythmia
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/biosignal-analyzer.git
+git clone https://github.com/edisonlovescodes/biosignal-analyzer.git
 cd biosignal-analyzer
 ```
 
@@ -333,9 +333,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contact
 
-Your Name - [GitHub](https://github.com/yourusername)
+Edison - [GitHub](https://github.com/edisonlovescodes)
 
-Project Link: [https://github.com/yourusername/biosignal-analyzer](https://github.com/yourusername/biosignal-analyzer)
+Project Link: [https://github.com/edisonlovescodes/biosignal-analyzer](https://github.com/edisonlovescodes/biosignal-analyzer)
 
 ---
 
