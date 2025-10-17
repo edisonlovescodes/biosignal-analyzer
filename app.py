@@ -54,7 +54,7 @@ st.markdown("""
     .block-container {
         padding: 2rem 3rem;
         background: rgba(255, 255, 255, 0.98);
-        border-radius: 20px;
+        border-radius: 0px;
         box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         backdrop-filter: blur(10px);
         margin: 2rem auto;
@@ -95,7 +95,7 @@ st.markdown("""
     [data-testid="stSidebar"] .stRadio label {
         background: rgba(255, 255, 255, 0.1);
         padding: 0.8rem;
-        border-radius: 10px;
+        border-radius: 0px;
         margin: 0.3rem 0;
         backdrop-filter: blur(10px);
         transition: all 0.3s ease;
@@ -114,7 +114,7 @@ st.markdown("""
         padding: 0.75rem 2.5rem;
         font-size: 1.1rem;
         font-weight: 600;
-        border-radius: 12px;
+        border-radius: 0px;
         box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
         transition: all 0.3s ease;
         width: 100%;
@@ -148,7 +148,7 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] {
         padding: 1rem 2rem;
         background: transparent;
-        border-radius: 10px 10px 0 0;
+        border-radius: 0px;
         font-weight: 600;
         color: #64748b;
         transition: all 0.3s ease;
@@ -161,7 +161,7 @@ st.markdown("""
 
     /* Success message */
     .stAlert {
-        border-radius: 12px;
+        border-radius: 0px;
         border-left: 4px solid #10b981;
         background: #ecfdf5;
         padding: 1rem;
@@ -171,7 +171,7 @@ st.markdown("""
     .stInfo {
         background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(153, 27, 27, 0.1) 100%);
         border-left: 4px solid #dc2626;
-        border-radius: 12px;
+        border-radius: 0px;
         padding: 1.5rem;
     }
 
@@ -179,7 +179,7 @@ st.markdown("""
     [data-testid="stFileUploader"] {
         background: #f8fafc;
         border: 2px dashed #cbd5e1;
-        border-radius: 12px;
+        border-radius: 0px;
         padding: 2rem;
         transition: all 0.3s ease;
     }
@@ -192,7 +192,7 @@ st.markdown("""
     /* Expander */
     .streamlit-expanderHeader {
         background: #f8fafc;
-        border-radius: 10px;
+        border-radius: 0px;
         font-weight: 600;
         color: #334155;
     }
@@ -203,7 +203,7 @@ st.markdown("""
         color: white;
         border: none;
         padding: 0.75rem 2rem;
-        border-radius: 10px;
+        border-radius: 0px;
         font-weight: 600;
         transition: all 0.3s ease;
     }
@@ -328,7 +328,7 @@ def generate_synthetic_ecg(duration: int = 10, fs: int = 360) -> np.ndarray:
     # Add QRS complexes
     for beat_time in np.arange(0, duration, 1/hr_hz):
         beat_idx = int(beat_time * fs)
-        if beat_idx < len(ecg) - 50:
+        if beat_idx >= 5 and beat_idx < len(ecg) - 80:
             # Q wave
             ecg[beat_idx-5:beat_idx] -= np.linspace(0, 0.1, 5)
             # R peak
@@ -370,21 +370,24 @@ def analyze_ecg(signal: np.ndarray, fs: float, model: ArrhythmiaClassifier):
     if len(peaks) > 2:
         with st.spinner("Classifying heartbeats..."):
             segment_length = 187
-            half_length = segment_length // 2
+            half_before = segment_length // 2  # 93
+            half_after = segment_length - half_before  # 94
 
             for peak in peaks[:10]:  # Analyze first 10 beats
-                start = max(0, peak - half_length)
-                end = min(len(filtered_signal), peak + half_length)
+                start = peak - half_before
+                end = peak + half_after
 
-                if end - start == segment_length:
+                # Check bounds
+                if start >= 0 and end <= len(filtered_signal):
                     segment = normalized_signal[start:end]
-                    pred_class, confidence, probs = model.predict(segment)
-                    predictions.append({
-                        'beat': peak,
-                        'class': pred_class,
-                        'confidence': confidence,
-                        'probabilities': probs
-                    })
+                    if len(segment) == segment_length:
+                        pred_class, confidence, probs = model.predict(segment)
+                        predictions.append({
+                            'beat': peak,
+                            'class': pred_class,
+                            'confidence': confidence,
+                            'probabilities': probs
+                        })
 
     return {
         'original': signal,
@@ -410,13 +413,13 @@ def main():
             <h1 class="main-header">🫀 BioSignal Analyzer</h1>
             <p class="sub-header">Advanced ECG Analysis & AI-Powered Arrhythmia Detection</p>
             <div style="display: flex; justify-content: center; gap: 2rem; margin-top: 1.5rem;">
-                <span style="background: rgba(220, 38, 38, 0.1); padding: 0.5rem 1.5rem; border-radius: 20px; color: #dc2626; font-weight: 600;">
+                <span style="background: rgba(220, 38, 38, 0.1); padding: 0.5rem 1.5rem; border-radius: 0px; color: #dc2626; font-weight: 600;">
                     🔬 Signal Processing
                 </span>
-                <span style="background: rgba(220, 38, 38, 0.1); padding: 0.5rem 1.5rem; border-radius: 20px; color: #dc2626; font-weight: 600;">
+                <span style="background: rgba(220, 38, 38, 0.1); padding: 0.5rem 1.5rem; border-radius: 0px; color: #dc2626; font-weight: 600;">
                     🤖 Deep Learning
                 </span>
-                <span style="background: rgba(220, 38, 38, 0.1); padding: 0.5rem 1.5rem; border-radius: 20px; color: #dc2626; font-weight: 600;">
+                <span style="background: rgba(220, 38, 38, 0.1); padding: 0.5rem 1.5rem; border-radius: 0px; color: #dc2626; font-weight: 600;">
                     📊 Real-Time Analysis
                 </span>
             </div>
@@ -460,11 +463,17 @@ def main():
                 st.error("Unsupported file format")
 
     elif data_source == "Use Demo Data":
-        st.sidebar.info("Demo: MIT-BIH Record 100 (first 10 seconds)")
-        # For demo, we'll generate synthetic data
-        # In production, you'd load actual MIT-BIH data
-        signal = generate_synthetic_ecg(duration=10, fs=360)
-        fs = 360.0
+        st.sidebar.info("Demo: MIT-BIH Record 100 (first 30 seconds)")
+        # Load actual MIT-BIH data
+        try:
+            import wfdb
+            record = wfdb.rdrecord('data/mit-bih/100')
+            signal = record.p_signal[:10800, 0]  # First 30 seconds at 360 Hz
+            fs = float(record.fs)
+        except:
+            # Fallback to synthetic if MIT-BIH data not available
+            signal = generate_synthetic_ecg(duration=30, fs=360)
+            fs = 360.0
 
     else:  # Generate Synthetic
         duration = st.sidebar.slider("Duration (seconds)", 5, 30, 10)
@@ -485,7 +494,7 @@ def main():
         st.markdown(f'''
             <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
                         border-left: 4px solid #10b981;
-                        border-radius: 12px;
+                        border-radius: 0px;
                         padding: 1.2rem;
                         margin: 2rem 0;">
                 <div style="display: flex; align-items: center; gap: 1rem;">
@@ -646,7 +655,7 @@ def main():
         # Modern welcome screen
         st.markdown('''
             <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.08) 0%, rgba(153, 27, 27, 0.08) 100%);
-                        border-radius: 16px;
+                        border-radius: 0px;
                         padding: 3rem 2rem;
                         text-align: center;
                         margin: 2rem 0;">
@@ -657,13 +666,13 @@ def main():
                     Upload an ECG file, use demo data, or generate synthetic signals to get started
                 </p>
                 <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-                    <span style="background: white; padding: 0.8rem 1.5rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <span style="background: white; padding: 0.8rem 1.5rem; border-radius: 0px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                         📁 Upload Files
                     </span>
-                    <span style="background: white; padding: 0.8rem 1.5rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <span style="background: white; padding: 0.8rem 1.5rem; border-radius: 0px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                         📊 Use Demo Data
                     </span>
-                    <span style="background: white; padding: 0.8rem 1.5rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <span style="background: white; padding: 0.8rem 1.5rem; border-radius: 0px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                         ⚡ Generate Synthetic
                     </span>
                 </div>
@@ -678,7 +687,7 @@ def main():
 
         with col1:
             st.markdown('''
-                <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); height: 100%;">
+                <div style="background: white; padding: 1.5rem; border-radius: 0px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); height: 100%;">
                     <div style="font-size: 2.5rem; margin-bottom: 1rem;">🔬</div>
                     <h4 style="color: #dc2626; margin-bottom: 0.8rem;">Signal Processing</h4>
                     <p style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">
@@ -689,7 +698,7 @@ def main():
 
         with col2:
             st.markdown('''
-                <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); height: 100%;">
+                <div style="background: white; padding: 1.5rem; border-radius: 0px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); height: 100%;">
                     <div style="font-size: 2.5rem; margin-bottom: 1rem;">💓</div>
                     <h4 style="color: #dc2626; margin-bottom: 0.8rem;">HRV Analysis</h4>
                     <p style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">
@@ -700,7 +709,7 @@ def main():
 
         with col3:
             st.markdown('''
-                <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); height: 100%;">
+                <div style="background: white; padding: 1.5rem; border-radius: 0px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); height: 100%;">
                     <div style="font-size: 2.5rem; margin-bottom: 1rem;">🤖</div>
                     <h4 style="color: #dc2626; margin-bottom: 0.8rem;">AI Detection</h4>
                     <p style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">
@@ -719,7 +728,7 @@ def main():
 
         with col1:
             st.markdown('''
-                <div style="background: #f8fafc; padding: 1.2rem; border-radius: 10px; border-left: 4px solid #dc2626;">
+                <div style="background: #f8fafc; padding: 1.2rem; border-radius: 0px; border-left: 4px solid #dc2626;">
                     <h5 style="color: #334155; margin-bottom: 0.8rem;">📄 File Formats</h5>
                     <ul style="margin: 0; padding-left: 1.2rem; color: #64748b;">
                         <li>CSV (auto-detects columns)</li>
@@ -731,7 +740,7 @@ def main():
 
         with col2:
             st.markdown('''
-                <div style="background: #f8fafc; padding: 1.2rem; border-radius: 10px; border-left: 4px solid #991b1b;">
+                <div style="background: #f8fafc; padding: 1.2rem; border-radius: 0px; border-left: 4px solid #991b1b;">
                     <h5 style="color: #334155; margin-bottom: 0.8rem;">🎯 Analysis Types</h5>
                     <ul style="margin: 0; padding-left: 1.2rem; color: #64748b;">
                         <li>R-peak detection (Pan-Tompkins)</li>
