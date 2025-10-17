@@ -47,7 +47,7 @@ st.markdown("""
 
     /* Main container */
     .main {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
         background-attachment: fixed;
     }
 
@@ -63,7 +63,7 @@ st.markdown("""
 
     /* Header styling */
     .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -84,7 +84,7 @@ st.markdown("""
 
     /* Sidebar styling */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
         padding: 2rem 1rem;
     }
 
@@ -108,28 +108,28 @@ st.markdown("""
 
     /* Button styling */
     .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
         color: white;
         border: none;
         padding: 0.75rem 2.5rem;
         font-size: 1.1rem;
         font-weight: 600;
         border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
         transition: all 0.3s ease;
         width: 100%;
     }
 
     .stButton > button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        box-shadow: 0 6px 20px rgba(220, 38, 38, 0.6);
     }
 
     /* Metric cards */
     [data-testid="stMetricValue"] {
         font-size: 2rem;
         font-weight: 700;
-        color: #667eea;
+        color: #dc2626;
     }
 
     [data-testid="stMetricLabel"] {
@@ -155,7 +155,7 @@ st.markdown("""
     }
 
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
         color: white !important;
     }
 
@@ -169,8 +169,8 @@ st.markdown("""
 
     /* Info box */
     .stInfo {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-        border-left: 4px solid #667eea;
+        background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(153, 27, 27, 0.1) 100%);
+        border-left: 4px solid #dc2626;
         border-radius: 12px;
         padding: 1.5rem;
     }
@@ -185,8 +185,8 @@ st.markdown("""
     }
 
     [data-testid="stFileUploader"]:hover {
-        border-color: #667eea;
-        background: rgba(102, 126, 234, 0.05);
+        border-color: #dc2626;
+        background: rgba(220, 38, 38, 0.05);
     }
 
     /* Expander */
@@ -215,7 +215,7 @@ st.markdown("""
 
     /* Slider */
     .stSlider > div > div > div {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(90deg, #dc2626 0%, #991b1b 100%);
     }
 
     /* Divider */
@@ -248,7 +248,7 @@ st.markdown("""
         background: #f1f5f9;
         padding: 0.2rem 0.5rem;
         border-radius: 4px;
-        color: #667eea;
+        color: #dc2626;
         font-weight: 500;
     }
     </style>
@@ -410,13 +410,13 @@ def main():
             <h1 class="main-header">🫀 BioSignal Analyzer</h1>
             <p class="sub-header">Advanced ECG Analysis & AI-Powered Arrhythmia Detection</p>
             <div style="display: flex; justify-content: center; gap: 2rem; margin-top: 1.5rem;">
-                <span style="background: rgba(102, 126, 234, 0.1); padding: 0.5rem 1.5rem; border-radius: 20px; color: #667eea; font-weight: 600;">
+                <span style="background: rgba(220, 38, 38, 0.1); padding: 0.5rem 1.5rem; border-radius: 20px; color: #dc2626; font-weight: 600;">
                     🔬 Signal Processing
                 </span>
-                <span style="background: rgba(102, 126, 234, 0.1); padding: 0.5rem 1.5rem; border-radius: 20px; color: #667eea; font-weight: 600;">
+                <span style="background: rgba(220, 38, 38, 0.1); padding: 0.5rem 1.5rem; border-radius: 20px; color: #dc2626; font-weight: 600;">
                     🤖 Deep Learning
                 </span>
-                <span style="background: rgba(102, 126, 234, 0.1); padding: 0.5rem 1.5rem; border-radius: 20px; color: #667eea; font-weight: 600;">
+                <span style="background: rgba(220, 38, 38, 0.1); padding: 0.5rem 1.5rem; border-radius: 20px; color: #dc2626; font-weight: 600;">
                     📊 Real-Time Analysis
                 </span>
             </div>
@@ -645,12 +645,12 @@ def main():
     else:
         # Modern welcome screen
         st.markdown('''
-            <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+            <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.08) 0%, rgba(153, 27, 27, 0.08) 100%);
                         border-radius: 16px;
                         padding: 3rem 2rem;
                         text-align: center;
                         margin: 2rem 0;">
-                <h2 style="color: #667eea; margin-bottom: 1rem; font-size: 2rem;">
+                <h2 style="color: #dc2626; margin-bottom: 1rem; font-size: 2rem;">
                     👋 Welcome to BioSignal Analyzer
                 </h2>
                 <p style="color: #64748b; font-size: 1.1rem; margin-bottom: 2rem;">
@@ -680,7 +680,7 @@ def main():
             st.markdown('''
                 <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); height: 100%;">
                     <div style="font-size: 2.5rem; margin-bottom: 1rem;">🔬</div>
-                    <h4 style="color: #667eea; margin-bottom: 0.8rem;">Signal Processing</h4>
+                    <h4 style="color: #dc2626; margin-bottom: 0.8rem;">Signal Processing</h4>
                     <p style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">
                         Advanced filtering techniques including bandpass, notch, and baseline wander removal
                     </p>
@@ -691,7 +691,7 @@ def main():
             st.markdown('''
                 <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); height: 100%;">
                     <div style="font-size: 2.5rem; margin-bottom: 1rem;">💓</div>
-                    <h4 style="color: #667eea; margin-bottom: 0.8rem;">HRV Analysis</h4>
+                    <h4 style="color: #dc2626; margin-bottom: 0.8rem;">HRV Analysis</h4>
                     <p style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">
                         Complete HRV metrics including SDNN, RMSSD, pNN50, and frequency domain analysis
                     </p>
@@ -702,7 +702,7 @@ def main():
             st.markdown('''
                 <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); height: 100%;">
                     <div style="font-size: 2.5rem; margin-bottom: 1rem;">🤖</div>
-                    <h4 style="color: #667eea; margin-bottom: 0.8rem;">AI Detection</h4>
+                    <h4 style="color: #dc2626; margin-bottom: 0.8rem;">AI Detection</h4>
                     <p style="color: #64748b; font-size: 0.9rem; line-height: 1.6;">
                         Deep learning CNN trained on MIT-BIH database for arrhythmia classification
                     </p>
@@ -719,7 +719,7 @@ def main():
 
         with col1:
             st.markdown('''
-                <div style="background: #f8fafc; padding: 1.2rem; border-radius: 10px; border-left: 4px solid #667eea;">
+                <div style="background: #f8fafc; padding: 1.2rem; border-radius: 10px; border-left: 4px solid #dc2626;">
                     <h5 style="color: #334155; margin-bottom: 0.8rem;">📄 File Formats</h5>
                     <ul style="margin: 0; padding-left: 1.2rem; color: #64748b;">
                         <li>CSV (auto-detects columns)</li>
@@ -731,7 +731,7 @@ def main():
 
         with col2:
             st.markdown('''
-                <div style="background: #f8fafc; padding: 1.2rem; border-radius: 10px; border-left: 4px solid #764ba2;">
+                <div style="background: #f8fafc; padding: 1.2rem; border-radius: 10px; border-left: 4px solid #991b1b;">
                     <h5 style="color: #334155; margin-bottom: 0.8rem;">🎯 Analysis Types</h5>
                     <ul style="margin: 0; padding-left: 1.2rem; color: #64748b;">
                         <li>R-peak detection (Pan-Tompkins)</li>
