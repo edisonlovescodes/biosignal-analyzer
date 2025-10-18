@@ -44,7 +44,7 @@ A comprehensive web application for ECG signal analysis and automatic arrhythmia
 
 ## Demo
 
-🔗 **[Live Demo](https://edisonlovescodes-biosignal-analyzer.streamlit.app)** (Deploying now...)
+🔗 **[Live Demo](http://localhost:8501)** - Run locally following installation steps below
 
 ## Installation
 
@@ -162,12 +162,12 @@ To train your own model on the MIT-BIH Arrhythmia Database:
 1. Download the MIT-BIH database:
 ```bash
 # Using wfdb-python
-python -c "import wfdb; wfdb.dl_database('mitdb', 'data/mit-bih-arrhythmia-database-1.0.0')"
+python -c "import wfdb; wfdb.dl_database('mitdb', 'data/mit-bih')"
 ```
 
 2. Run the training script:
 ```bash
-python src/models/train_model.py
+python train_with_available_data.py
 ```
 
 3. The trained model will be saved to `data/models/ecg_arrhythmia_classifier.h5`
@@ -261,7 +261,7 @@ Dense (64) + Dropout
 Dense (5, softmax)
 ```
 
-**Performance**: ~95% accuracy on MIT-BIH test set
+**Performance**: Trained on 109,117 labeled heartbeats from 48 MIT-BIH records with class-balanced learning to handle severe imbalance (82% Normal, 1.6% AFib)
 
 ## Dataset
 
