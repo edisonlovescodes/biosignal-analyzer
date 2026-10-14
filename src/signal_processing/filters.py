@@ -8,11 +8,7 @@ from typing import Tuple, Optional
 
 
 def bandpass_filter(
-    data: np.ndarray,
-    lowcut: float,
-    highcut: float,
-    fs: float,
-    order: int = 4
+    data: np.ndarray, lowcut: float, highcut: float, fs: float, order: int = 4
 ) -> np.ndarray:
     """
     Apply a Butterworth bandpass filter to remove noise outside the frequency range.
@@ -31,17 +27,14 @@ def bandpass_filter(
     low = lowcut / nyquist
     high = highcut / nyquist
 
-    b, a = signal.butter(order, [low, high], btype='band')
+    b, a = signal.butter(order, [low, high], btype="band")
     filtered = signal.filtfilt(b, a, data)
 
     return filtered
 
 
 def notch_filter(
-    data: np.ndarray,
-    notch_freq: float,
-    fs: float,
-    quality: float = 30.0
+    data: np.ndarray, notch_freq: float, fs: float, quality: float = 30.0
 ) -> np.ndarray:
     """
     Apply notch filter to remove powerline interference (50/60 Hz).
@@ -56,19 +49,15 @@ def notch_filter(
         Filtered signal
     """
     nyquist = 0.5 * fs
-    freq = notch_freq / nyquist
-
-    b, a = signal.iirnotch(freq, quality, fs)
+    if not 0 < notch_freq < nyquist or quality <= 0:
+        raise ValueError("Notch frequency must be below Nyquist and quality positive")
+    b, a = signal.iirnotch(notch_freq, quality, fs=fs)
     filtered = signal.filtfilt(b, a, data)
 
     return filtered
 
 
-def remove_baseline_wander(
-    data: np.ndarray,
-    fs: float,
-    cutoff: float = 0.5
-) -> np.ndarray:
+def remove_baseline_wander(data: np.ndarray, fs: float, cutoff: float = 0.5) -> np.ndarray:
     """
     Remove baseline wander using high-pass filter.
 
@@ -83,17 +72,14 @@ def remove_baseline_wander(
     nyquist = 0.5 * fs
     normal_cutoff = cutoff / nyquist
 
-    b, a = signal.butter(4, normal_cutoff, btype='high')
+    b, a = signal.butter(4, normal_cutoff, btype="high")
     filtered = signal.filtfilt(b, a, data)
 
     return filtered
 
 
 def preprocess_ecg(
-    data: np.ndarray,
-    fs: float,
-    apply_notch: bool = True,
-    notch_freq: float = 60.0
+    data: np.ndarray, fs: float, apply_notch: bool = True, notch_freq: float = 60.0
 ) -> np.ndarray:
     """
     Complete ECG preprocessing pipeline.

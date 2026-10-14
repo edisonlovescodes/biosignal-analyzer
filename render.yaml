@@ -7,7 +7,7 @@ services:
     dockerContext: .
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10
+        value: 3.12
       - key: STREAMLIT_SERVER_PORT
         value: 8501
       - key: STREAMLIT_SERVER_ADDRESS
