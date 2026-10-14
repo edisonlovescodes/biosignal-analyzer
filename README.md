@@ -1,342 +1,80 @@
-# 🫀 BioSignal Analyzer
+# BioSignal Analyzer
 
-A comprehensive web application for ECG signal analysis and automatic arrhythmia detection using deep learning.
+A Python ECG exploration application with Streamlit/Plotly views, NumPy/SciPy filtering and HRV features, CNN/LSTM builders, and a separate FastAPI CSV interface.
 
-![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
-![TensorFlow](https://img.shields.io/badge/TensorFlow-2.15-orange.svg)
-![Streamlit](https://img.shields.io/badge/Streamlit-1.29-red.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+**Signal exploration works without a classifier.** Classification requires a trained public-data artifact with the current label/preprocessing metadata and checksum. Random weights and synthetic-test models are never silently served.
 
-## Features
+## What changed
 
-- **Advanced Signal Processing**
-  - Bandpass filtering (0.5-40 Hz)
-  - Baseline wander removal
-  - Powerline interference removal (50/60 Hz notch filter)
-  - Pan-Tompkins R-peak detection
+- Corrected the 60 Hz notch filter's frequency units and added an attenuation/preservation test.
+- Unified complete 187-sample extraction: 93 samples before the peak, 94 starting at/after it.
+- Corrected fusion-beat labels and persisted a fixed class order.
+- Added subject-grouped train/validation/test splitting; records 201/202 stay together.
+- Unified record filtering and per-beat normalization across training and classification.
+- Fixed short/flat-signal peak detection and HRV PSD integration using frequency coordinates.
+- Added model readiness, artifact checksums, CSV bounds and fail-closed prediction routes.
+- Narrowed uploads to implemented CSV support and wired the UI filter controls.
 
-- **Heart Rate Analysis**
-  - Instantaneous heart rate calculation
-  - RR interval analysis
-  - Heart rate variability (HRV) metrics
+The coarse classes are **Normal/Conduction, PAC, PVC, Fusion, Other**. This is a custom beat-label task, not an atrial-fibrillation rhythm detector. MIT-BIH F and f are ventricular/normal and paced/normal fusion annotations, respectively. See [PhysioNet's annotation guide](https://physionet.org/physiobank/database/html/mitdbdir/intro.htm).
 
-- **HRV Analysis**
-  - Time domain: SDNN, RMSSD, pNN50
-  - Frequency domain: VLF, LF, HF power, LF/HF ratio
-  - Poincaré plot visualization
+## Run locally
 
-- **Frequency Analysis**
-  - Power spectral density (FFT)
-  - Dominant frequency detection
-  - Frequency spectrum visualization
+Python 3.12, from the repository root:
 
-- **Arrhythmia Detection**
-  - Deep learning classification (1D CNN)
-  - 5 classes: Normal, Atrial Fibrillation, PVC, PAC, Other
-  - Trained on MIT-BIH Arrhythmia Database
-  - Confidence scores and probability distributions
-
-- **Interactive Visualizations**
-  - Real-time signal plotting
-  - Interactive Plotly charts
-  - Multiple analysis views
-  - Export functionality
-
-## Demo
-
-🔗 **[Live Demo](http://localhost:8501)** - Run locally following installation steps below
-
-## Installation
-
-### Prerequisites
-
-- Python 3.10 or higher
-- pip package manager
-- Git
-
-### Local Setup
-
-1. Clone the repository:
-```bash
-git clone https://github.com/edisonlovescodes/biosignal-analyzer.git
-cd biosignal-analyzer
-```
-
-2. Create a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-4. Run the application:
-```bash
 streamlit run app.py
 ```
 
-5. Open your browser to `http://localhost:8501`
+Open http://localhost:8501 and choose **Generate Synthetic**, or upload a CSV with a numeric `signal`, `ecg`, `value`, or `amplitude` column. Single-column CSVs are also supported; include a header. The UI defaults to 360 Hz. Synthetic signals demonstrate processing/visualization only. If the local MIT-BIH demo record is missing, the fallback is visibly labeled synthetic.
 
-### Docker Setup
+The Streamlit upload interface does not claim EDF or standalone WFDB `.dat` support. WFDB training reads complete local records with their headers/annotations separately.
 
-```bash
-# Build the image
+## API
+
+```sh
+uvicorn api.main:app --host 127.0.0.1 --port 8000
+```
+
+Documentation: http://127.0.0.1:8000/docs.
+
+- `/health`: signal analysis availability and a separate `model_loaded` flag.
+- `/analyze`: bounded numeric CSV exploration (at least 64 samples, 4 MiB maximum); no fabricated classifier output if a model is absent.
+- `/predict`: returns 503 without a compatible model. With a model, requires exactly 187 samples, `sampling_rate=360`, and `prefiltered=true`; it does not silently pad/truncate. For raw records use `/analyze`.
+- `/model/info`: compatible artifact metadata; 503 when unavailable.
+
+Classification uses the declared 360 Hz, lead-0, record-level 0.5–40 Hz bandpass/60 Hz notch contract and per-beat z-scoring. Other UI filter settings show signal features only. Resampling and lead equivalence are not implemented. `BIOSIGNAL_MODEL_PATH` configures the API artifact; Streamlit uses the default path below. `CORS_ORIGINS` configures separate-host origins.
+
+## Train with local public data
+
+Acquire [MIT-BIH Arrhythmia Database](https://physionet.org/content/mitdb/) separately and follow its published terms. No download or full real-data training is performed automatically:
+
+```sh
+python -m src.models.train_model --data /path/to/local/WFDB/records --epochs 10
+```
+
+The default output is `data/models/ecg_arrhythmia_classifier.keras` plus a JSON sidecar containing class order, filtering contract, trained/public status, model/data checksums, subject splits, beat counts, per-class test metrics and confusion matrix. At least five subjects are required. Classification only accepts compatible metadata and dimensions; old artifacts require retraining under the corrected contract. Synthetic model tests deliberately opt into untrained weights and cannot be mistaken for this public-data artifact.
+
+No tracked trained public-data artifact or reproduced clinical accuracy is claimed. The earlier 95%, 109,117-beat, 48-record training and class-balancing assertions have been removed. Correct code alone does not establish classifier quality; a new public-data run and separate peak-detection evaluation remain necessary.
+
+## Tests and containers
+
+```sh
+pip install -r requirements-dev.txt
+python -m pytest tests -q
+```
+
+The suite checks scientific/runtime regressions and architecture/training wiring with synthetic data. CI runs the same suite. Docker uses Python 3.12 and a standard-library health probe:
+
+```sh
 docker build -t biosignal-analyzer .
-
-# Run the container
-docker run -p 8501:8501 biosignal-analyzer
+docker run --rm -p 127.0.0.1:8501:8501 biosignal-analyzer
 ```
 
-## Usage
+Container execution is a separate check from local Python tests. See [CLAIMS.md](CLAIMS.md) and [CHANGELOG.md](CHANGELOG.md).
 
-### 1. Upload ECG Data
+## Interface and type
 
-The application supports multiple input formats:
-
-- **CSV files**: Simple format with signal values
-- **WFDB format**: MIT-BIH standard (.dat, .hea files)
-- **Demo data**: Pre-loaded examples
-- **Synthetic generation**: For testing
-
-### 2. Analyze Signal
-
-Click "Analyze ECG" to perform comprehensive analysis:
-
-- Signal preprocessing and filtering
-- R-peak detection
-- Heart rate calculation
-- HRV metrics
-- Frequency analysis
-- Arrhythmia classification
-
-### 3. View Results
-
-Results are organized in tabs:
-
-- **Signal**: ECG waveform with R-peaks
-- **Heart Rate**: HR trends and RR intervals
-- **HRV Analysis**: Time and frequency metrics
-- **Frequency Analysis**: Power spectrum
-- **Arrhythmia Detection**: Classification results
-
-### 4. Export Data
-
-Download analysis results as CSV for further processing.
-
-## Data Format
-
-### CSV Format
-
-```csv
-time,signal
-0.000,0.050
-0.003,0.045
-0.006,0.048
-...
-```
-
-Or simplified (auto-detected):
-
-```csv
-signal
-0.050
-0.045
-0.048
-...
-```
-
-### Example Data
-
-Sample ECG files are available in `data/samples/`:
-
-- `sample_ecg.csv`: Basic ECG example
-- More examples available after downloading MIT-BIH data
-
-## Model Training
-
-To train your own model on the MIT-BIH Arrhythmia Database:
-
-1. Download the MIT-BIH database:
-```bash
-# Using wfdb-python
-python -c "import wfdb; wfdb.dl_database('mitdb', 'data/mit-bih')"
-```
-
-2. Run the training script:
-```bash
-python train_with_available_data.py
-```
-
-3. The trained model will be saved to `data/models/ecg_arrhythmia_classifier.h5`
-
-## API Usage
-
-The application includes a FastAPI backend for programmatic access:
-
-```bash
-# Run the API server
-uvicorn api.main:app --host 0.0.0.0 --port 8000
-```
-
-### API Endpoints
-
-**POST /analyze**
-```bash
-curl -X POST "http://localhost:8000/analyze" \
-  -F "file=@path/to/ecg.csv" \
-  -F "sampling_rate=360"
-```
-
-**POST /predict**
-```bash
-curl -X POST "http://localhost:8000/predict" \
-  -F "file=@path/to/beat.csv"
-```
-
-**GET /health**
-```bash
-curl "http://localhost:8000/health"
-```
-
-API documentation available at: `http://localhost:8000/docs`
-
-## Project Structure
-
-```
-biosignal-analyzer/
-├── src/
-│   ├── signal_processing/     # Signal processing modules
-│   │   ├── filters.py          # Filtering functions
-│   │   ├── peak_detection.py  # R-peak detection
-│   │   └── features.py         # Feature extraction
-│   ├── models/                 # ML models
-│   │   ├── cnn_model.py        # CNN architecture
-│   │   ├── lstm_model.py       # LSTM models
-│   │   └── train_model.py      # Training pipeline
-│   └── visualization/          # Plotting functions
-│       └── plots.py
-├── api/                        # FastAPI backend
-│   └── main.py
-├── data/
-│   ├── samples/                # Example data
-│   └── models/                 # Trained models
-├── tests/                      # Unit tests
-├── app.py                      # Main Streamlit app
-├── requirements.txt
-├── Dockerfile
-└── README.md
-```
-
-## Technologies Used
-
-- **Python 3.10+**: Core language
-- **TensorFlow/Keras**: Deep learning framework
-- **Streamlit**: Web application framework
-- **NumPy/SciPy**: Numerical computing
-- **Plotly**: Interactive visualizations
-- **FastAPI**: REST API
-- **WFDB**: Physionet database tools
-- **Docker**: Containerization
-
-## Model Architecture
-
-The arrhythmia classifier uses a 1D Convolutional Neural Network:
-
-```
-Input (187 samples, 1 channel)
-    ↓
-Conv1D (64 filters) + BatchNorm + MaxPooling
-    ↓
-Conv1D (128 filters) + BatchNorm + MaxPooling
-    ↓
-Conv1D (256 filters) + BatchNorm + GlobalAvgPooling
-    ↓
-Dense (128) + Dropout
-    ↓
-Dense (64) + Dropout
-    ↓
-Dense (5, softmax)
-```
-
-**Performance**: Trained on 109,117 labeled heartbeats from 48 MIT-BIH records with class-balanced learning to handle severe imbalance (82% Normal, 1.6% AFib)
-
-## Dataset
-
-The model is trained on the **MIT-BIH Arrhythmia Database**:
-
-- 48 half-hour ECG recordings
-- 47 subjects (25 men, 22 women)
-- 360 Hz sampling rate
-- Expert annotations for arrhythmia types
-
-**Citation**:
-```
-Moody GB, Mark RG. The impact of the MIT-BIH Arrhythmia Database.
-IEEE Eng in Med and Biol 20(3):45-50 (May-June 2001).
-(PMID: 11446209)
-```
-
-## Deployment
-
-### Render
-
-1. Fork this repository
-2. Create a new Web Service on Render
-3. Connect your GitHub repository
-4. Render will automatically detect `render.yaml`
-5. Deploy!
-
-### Railway/Heroku
-
-Update `Procfile`:
-```
-web: streamlit run app.py --server.port=$PORT --server.address=0.0.0.0
-```
-
-## Testing
-
-Run tests with pytest:
-
-```bash
-pytest tests/
-```
-
-Run with coverage:
-
-```bash
-pytest --cov=src tests/
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- MIT-BIH Arrhythmia Database (PhysioNet)
-- WFDB Software Package
-- Streamlit community
-- TensorFlow developers
-
-## Contact
-
-Edison - [GitHub](https://github.com/edisonlovescodes)
-
-Project Link: [https://github.com/edisonlovescodes/biosignal-analyzer](https://github.com/edisonlovescodes/biosignal-analyzer)
-
----
-
-Made with ❤️ for biomedical signal analysis
+The interface uses self-hosted typefaces distributed by [Google Fonts](https://github.com/google/fonts). Original SIL Open Font License files are included in `static/fonts/`. No hosted font request is needed to render the page.

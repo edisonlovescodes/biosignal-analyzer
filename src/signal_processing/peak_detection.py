@@ -7,11 +7,7 @@ from scipy import signal
 from typing import Tuple, List
 
 
-def detect_r_peaks(
-    ecg_signal: np.ndarray,
-    fs: float,
-    method: str = 'pantompkins'
-) -> np.ndarray:
+def detect_r_peaks(ecg_signal: np.ndarray, fs: float, method: str = "pantompkins") -> np.ndarray:
     """
     Detect R-peaks in ECG signal using Pan-Tompkins algorithm.
 
@@ -23,7 +19,19 @@ def detect_r_peaks(
     Returns:
         Array of R-peak indices
     """
-    if method == 'pantompkins':
+    ecg_signal = np.asarray(ecg_signal, dtype=float)
+    if (
+        ecg_signal.ndim != 1
+        or not np.all(np.isfinite(ecg_signal))
+        or not np.isfinite(fs)
+        or fs <= 30
+    ):
+        raise ValueError("Expected finite one-dimensional ECG and sampling rate above 30 Hz")
+    if len(ecg_signal) <= 27 or np.ptp(ecg_signal) < 1e-12:
+        return np.array([], dtype=int)
+    if method not in {"pantompkins", "simple"}:
+        raise ValueError("Unknown peak detector")
+    if method == "pantompkins":
         return _pan_tompkins(ecg_signal, fs)
     else:
         return _simple_peak_detection(ecg_signal, fs)
@@ -42,25 +50,23 @@ def _pan_tompkins(ecg_signal: np.ndarray, fs: float) -> np.ndarray:
     """
     # Bandpass filter
     nyquist = 0.5 * fs
-    b, a = signal.butter(4, [5/nyquist, 15/nyquist], btype='band')
+    b, a = signal.butter(4, [5 / nyquist, 15 / nyquist], btype="band")
     filtered = signal.filtfilt(b, a, ecg_signal)
 
     # Derivative
     derivative = np.diff(filtered)
 
     # Squaring
-    squared = derivative ** 2
+    squared = derivative**2
 
     # Moving window integration
     window_size = int(0.15 * fs)  # 150ms window
-    integrated = np.convolve(squared, np.ones(window_size)/window_size, mode='same')
+    integrated = np.convolve(squared, np.ones(window_size) / window_size, mode="same")
 
     # Find peaks
     min_distance = int(0.2 * fs)  # Minimum 200ms between peaks (300 bpm max)
     peaks, _ = signal.find_peaks(
-        integrated,
-        distance=min_distance,
-        prominence=np.max(integrated) * 0.3
+        integrated, distance=min_distance, prominence=np.max(integrated) * 0.3
     )
 
     return peaks
@@ -71,11 +77,7 @@ def _simple_peak_detection(ecg_signal: np.ndarray, fs: float) -> np.ndarray:
     Simple peak detection using scipy.
     """
     min_distance = int(0.2 * fs)
-    peaks, _ = signal.find_peaks(
-        ecg_signal,
-        distance=min_distance,
-        prominence=np.std(ecg_signal)
-    )
+    peaks, _ = signal.find_peaks(ecg_signal, distance=min_distance, prominence=np.std(ecg_signal))
 
     return peaks
 
@@ -122,10 +124,7 @@ def calculate_heart_rate(peaks: np.ndarray, fs: float) -> Tuple[float, np.ndarra
 
 
 def segment_heartbeats(
-    ecg_signal: np.ndarray,
-    peaks: np.ndarray,
-    fs: float,
-    window_size: float = 0.6
+    ecg_signal: np.ndarray, peaks: np.ndarray, fs: float, window_size: float = 0.6
 ) -> List[np.ndarray]:
     """
     Segment individual heartbeats around R-peaks.

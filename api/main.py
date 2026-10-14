@@ -1,266 +1,186 @@
-"""
-FastAPI backend for ECG analysis API endpoints.
-"""
+"""CSV signal exploration; classification requires a compatible trained public-data bundle."""
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from contextlib import asynccontextmanager
+from io import StringIO
+import logging
+import os
+from pathlib import Path
+from threading import Lock
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List, Dict, Optional
 import numpy as np
 import pandas as pd
-from io import StringIO
-import os
-import sys
-
-# Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from src.signal_processing.filters import preprocess_ecg, normalize_signal
-from src.signal_processing.peak_detection import detect_r_peaks, calculate_heart_rate, calculate_rr_intervals
+from src.signal_processing.peak_detection import (
+    detect_r_peaks,
+    calculate_heart_rate,
+    calculate_rr_intervals,
+)
 from src.signal_processing.features import calculate_hrv_time_domain, calculate_hrv_frequency_domain
 from src.models.cnn_model import ArrhythmiaClassifier
+from src.models.contract import extract_beat
+
+ROOT = Path(__file__).resolve().parents[1]
+LOGGER = logging.getLogger(__name__)
+MAX_BYTES = 4 * 1024 * 1024
 
 
-app = FastAPI(
-    title="BioSignal Analyzer API",
-    description="API for ECG signal analysis and arrhythmia detection",
-    version="1.0.0"
-)
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Load model at startup
-model = None
-
-
-@app.on_event("startup")
-async def load_model_on_startup():
-    global model
-    model_path = "data/models/ecg_arrhythmia_classifier.h5"
-
-    if os.path.exists(model_path):
-        model = ArrhythmiaClassifier(model_path=model_path)
-    else:
-        model = ArrhythmiaClassifier()
+def read_signal(file):
+    data = file.file.read(MAX_BYTES + 1)
+    if len(data) > MAX_BYTES:
+        raise HTTPException(413, "CSV exceeds the 4 MiB limit")
+    try:
+        df = pd.read_csv(StringIO(data.decode("utf-8")))
+        columns = [c for c in ["signal", "ecg", "value", "amplitude"] if c in df.columns]
+        if not columns and len(df.columns) != 1:
+            raise ValueError("Use one signal column or name it signal/ecg/value/amplitude")
+        values = pd.to_numeric(
+            df[columns[0] if columns else df.columns[0]], errors="raise"
+        ).to_numpy(dtype=float)
+        if not len(values) or not np.all(np.isfinite(values)):
+            raise ValueError("Signal must be nonempty and finite")
+        return values
+    except (
+        ValueError,
+        IndexError,
+        UnicodeDecodeError,
+        pd.errors.ParserError,
+        pd.errors.EmptyDataError,
+    ):
+        raise HTTPException(
+            400, "Invalid CSV: provide finite numeric signal samples with a header"
+        ) from None
 
 
-# Pydantic models
-class AnalysisResult(BaseModel):
-    mean_heart_rate: float
-    num_peaks: int
-    hrv_metrics: Dict[str, float]
-    signal_quality: str
+def create_app(model_path=None):
+    path = Path(
+        model_path
+        or os.getenv("BIOSIGNAL_MODEL_PATH", ROOT / "data/models/ecg_arrhythmia_classifier.keras")
+    )
+    lock = Lock()
 
+    @asynccontextmanager
+    async def lifespan(app):
+        app.state.classifier = None
+        if path.exists():
+            try:
+                app.state.classifier = ArrhythmiaClassifier(str(path))
+            except Exception:
+                LOGGER.exception("Incompatible model; signal exploration remains available")
+        yield
+        app.state.classifier = None
 
-class PredictionResult(BaseModel):
-    beat_number: int
-    predicted_class: str
-    confidence: float
-    probabilities: Dict[str, float]
+    app = FastAPI(title="BioSignal Analyzer API", version="1.1.0", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            x.strip()
+            for x in os.getenv("CORS_ORIGINS", "http://localhost:8501").split(",")
+            if x.strip()
+        ],
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+    )
 
-
-class ECGAnalysisResponse(BaseModel):
-    success: bool
-    duration: float
-    sampling_rate: float
-    analysis: AnalysisResult
-    predictions: List[PredictionResult]
-    message: Optional[str] = None
-
-
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    return {
-        "message": "BioSignal Analyzer API",
-        "version": "1.0.0",
-        "endpoints": {
-            "/health": "Health check",
-            "/analyze": "Analyze ECG signal (POST)",
-            "/predict": "Predict arrhythmia (POST)",
-            "/docs": "API documentation"
+    @app.get("/")
+    def root():
+        return {
+            "service": "BioSignal Analyzer",
+            "scope": "CSV ECG exploration; coarse beat classifier optional",
         }
-    }
 
+    @app.get("/health")
+    def health():
+        ready = app.state.classifier is not None
+        return {
+            "status": "ready",
+            "signal_analysis_available": True,
+            "model_loaded": ready,
+            "classification_available": ready,
+        }
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "model_loaded": model is not None
-    }
-
-
-@app.post("/analyze", response_model=ECGAnalysisResponse)
-async def analyze_ecg(
-    file: UploadFile = File(...),
-    sampling_rate: Optional[float] = 360.0
-):
-    """
-    Analyze ECG signal from uploaded file.
-
-    Args:
-        file: CSV file with ECG signal
-        sampling_rate: Sampling frequency in Hz (default: 360)
-
-    Returns:
-        Complete analysis results including HRV and predictions
-    """
-    try:
-        # Read file
-        contents = await file.read()
-        df = pd.read_csv(StringIO(contents.decode('utf-8')))
-
-        # Extract signal
-        signal_col = None
-        for col in ['signal', 'ecg', 'value', 'amplitude', df.columns[0]]:
-            if col in df.columns:
-                signal_col = col
-                break
-
-        if signal_col is None:
-            signal_col = df.columns[0]
-
-        signal = df[signal_col].values
-        fs = sampling_rate
-
-        # Preprocess
-        filtered_signal = preprocess_ecg(signal, fs)
-        normalized_signal = normalize_signal(filtered_signal)
-
-        # Peak detection
-        peaks = detect_r_peaks(filtered_signal, fs)
-        mean_hr, _ = calculate_heart_rate(peaks, fs)
-        rr_intervals = calculate_rr_intervals(peaks, fs)
-
-        # HRV analysis
-        hrv_time = calculate_hrv_time_domain(rr_intervals)
-        hrv_freq = calculate_hrv_frequency_domain(rr_intervals)
-
-        # Combine HRV metrics
-        hrv_metrics = {**hrv_time, **hrv_freq}
-
-        # Signal quality assessment
-        if len(peaks) < 5:
-            quality = "poor"
-        elif len(peaks) < 20:
-            quality = "fair"
-        else:
-            quality = "good"
-
-        # Predictions
+    @app.post("/analyze")
+    def analyze(file: UploadFile = File(...), sampling_rate: float = Query(360, ge=128, le=2000)):
+        values = read_signal(file)
+        if len(values) < 64:
+            raise HTTPException(400, "Need at least 64 samples for filtering")
+        filtered = preprocess_ecg(values, sampling_rate)
+        peaks = detect_r_peaks(filtered, sampling_rate)
+        mean_hr, _ = calculate_heart_rate(peaks, sampling_rate)
+        rr = calculate_rr_intervals(peaks, sampling_rate)
         predictions = []
-        segment_length = 187
-        half_length = segment_length // 2
-
-        for i, peak in enumerate(peaks[:10]):
-            start = max(0, peak - half_length)
-            end = min(len(filtered_signal), peak + half_length)
-
-            if end - start == segment_length:
-                segment = normalized_signal[start:end]
-                pred_class, confidence, probs = model.predict(segment)
-
-                predictions.append(PredictionResult(
-                    beat_number=i + 1,
-                    predicted_class=pred_class,
-                    confidence=confidence,
-                    probabilities=probs
-                ))
-
-        # Create response
-        analysis = AnalysisResult(
-            mean_heart_rate=float(mean_hr),
-            num_peaks=len(peaks),
-            hrv_metrics=hrv_metrics,
-            signal_quality=quality
-        )
-
-        response = ECGAnalysisResponse(
-            success=True,
-            duration=len(signal) / fs,
-            sampling_rate=fs,
-            analysis=analysis,
-            predictions=predictions,
-            message="Analysis completed successfully"
-        )
-
-        return response
-
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error processing file: {str(e)}")
-
-
-@app.post("/predict")
-async def predict_arrhythmia(
-    file: UploadFile = File(...),
-    sampling_rate: Optional[float] = 360.0
-):
-    """
-    Predict arrhythmia from ECG segment.
-
-    Args:
-        file: CSV file with single ECG beat (187 samples)
-        sampling_rate: Sampling frequency in Hz
-
-    Returns:
-        Prediction results
-    """
-    try:
-        contents = await file.read()
-        df = pd.read_csv(StringIO(contents.decode('utf-8')))
-
-        # Get signal
-        signal_col = df.columns[0]
-        signal = df[signal_col].values
-
-        # Normalize
-        signal = normalize_signal(signal)
-
-        # Ensure correct length
-        if len(signal) != 187:
-            # Resample or pad
-            if len(signal) > 187:
-                signal = signal[:187]
-            else:
-                signal = np.pad(signal, (0, 187 - len(signal)), mode='edge')
-
-        # Predict
-        pred_class, confidence, probs = model.predict(signal)
-
+        classifier = app.state.classifier
+        if classifier is not None and sampling_rate == 360:
+            with lock:
+                for i, peak in enumerate(peaks[:10]):
+                    segment = extract_beat(filtered, peak)
+                    if segment is None:
+                        continue
+                    label, confidence, probabilities = classifier.predict(segment)
+                    predictions.append(
+                        {
+                            "beat_number": i + 1,
+                            "predicted_class": label,
+                            "confidence": confidence,
+                            "probabilities": probabilities,
+                        }
+                    )
         return {
             "success": True,
-            "predicted_class": pred_class,
-            "confidence": confidence,
-            "probabilities": probs
+            "duration": len(values) / sampling_rate,
+            "sampling_rate": sampling_rate,
+            "analysis": {
+                "mean_heart_rate": float(mean_hr),
+                "num_peaks": len(peaks),
+                "hrv_metrics": {
+                    **calculate_hrv_time_domain(rr),
+                    **calculate_hrv_frequency_domain(rr),
+                },
+                "signal_quality": "not clinically assessed",
+            },
+            "predictions": predictions,
+            "classification_available": classifier is not None and sampling_rate == 360,
+            "message": "Signal exploration completed; classification requires a compatible 360 Hz trained model",
         }
 
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error in prediction: {str(e)}")
+    @app.post("/predict")
+    def predict(
+        file: UploadFile = File(...),
+        sampling_rate: float = Query(360, ge=128, le=2000),
+        prefiltered: bool = False,
+    ):
+        classifier = app.state.classifier
+        if classifier is None:
+            raise HTTPException(
+                503, "Compatible trained model unavailable; signal analysis is still available"
+            )
+        if sampling_rate != 360 or not prefiltered:
+            raise HTTPException(
+                400,
+                "Provide a 360 Hz beat extracted after record-level contract filtering; use /analyze for raw signals",
+            )
+        values = read_signal(file)
+        if len(values) != 187:
+            raise HTTPException(
+                400, "Expected exactly 187 samples; no silent truncation or padding"
+            )
+        with lock:
+            label, confidence, probabilities = classifier.predict(normalize_signal(values))
+        return {
+            "success": True,
+            "predicted_class": label,
+            "confidence": confidence,
+            "probabilities": probabilities,
+        }
+
+    @app.get("/model/info")
+    def info():
+        classifier = app.state.classifier
+        if classifier is None:
+            raise HTTPException(503, "Compatible trained model unavailable")
+        return classifier.metadata
+
+    return app
 
 
-@app.get("/model/info")
-async def model_info():
-    """Get information about the loaded model."""
-    if model is None:
-        return {"error": "Model not loaded"}
-
-    return {
-        "model_type": "1D CNN",
-        "classes": model.CLASS_NAMES,
-        "input_shape": "(187, 1)",
-        "architecture": "Conv1D + BatchNorm + MaxPooling + Dense"
-    }
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+app = create_app()
