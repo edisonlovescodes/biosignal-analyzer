@@ -1,5 +1,7 @@
 # BioSignal Analyzer
 
+[Project overview and screenshots](https://byedison.com/projects/biosignal-analyzer/) · [Edison’s portfolio](https://byedison.com/)
+
 A Python ECG exploration application with Streamlit/Plotly views, NumPy/SciPy filtering and HRV features, CNN/LSTM builders, and a separate FastAPI CSV interface.
 
 **Signal exploration works without a classifier.** Classification requires a trained public-data artifact with the current label/preprocessing metadata and checksum. Random weights and synthetic-test models are never silently served.
