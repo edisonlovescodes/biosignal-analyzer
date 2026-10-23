@@ -26,7 +26,8 @@ PREPROCESSING = {
 }
 
 
-def extract_beat(filtered_signal, peak, segment_length=187):
+def extract_beat(filtered_signal, peak):
+    segment_length = PREPROCESSING["segment_length"]
     before = segment_length // 2
     start = int(peak) - before
     end = start + segment_length
@@ -36,11 +37,8 @@ def extract_beat(filtered_signal, peak, segment_length=187):
 
 
 def filter_record(values, sampling_rate):
-    if sampling_rate != 360:
-        raise ValueError(
-            "Classifier contract requires a 360 Hz lead-0 record; resampling is not implemented"
-        )
-    return preprocess_ecg(values, sampling_rate, apply_notch=True, notch_freq=60)
+    assert sampling_rate == 360, "Classifier requires a 360 Hz lead-0 record"
+    return preprocess_ecg(values, sampling_rate, notch_freq=60)
 
 
 def subject_id(record):

@@ -1,6 +1,8 @@
 """A waveform-first ECG exploration workspace. No synthetic classifier output."""
 
 from pathlib import Path
+from dataclasses import dataclass
+from typing import Literal
 import hashlib
 import html
 
@@ -11,7 +13,7 @@ import wfdb
 
 from src.models.cnn_model import ArrhythmiaClassifier
 from src.models.contract import extract_beat
-from src.signal_processing.filters import normalize_signal, preprocess_ecg
+from src.signal_processing.filters import preprocess_ecg
 from src.signal_processing.peak_detection import (
     detect_r_peaks,
     calculate_heart_rate,
@@ -21,7 +23,6 @@ from src.signal_processing.features import (
     calculate_hrv_time_domain,
     calculate_hrv_frequency_domain,
     compute_frequency_spectrum,
-    extract_all_features,
 )
 from src.visualization.plots import (
     plot_ecg_signal,
@@ -46,15 +47,18 @@ st.set_page_config(
 st.markdown(f'<style>{(ROOT / "styles.css").read_text()}</style>', unsafe_allow_html=True)
 
 
+@dataclass(frozen=True)
+class Study:
+    signal: np.ndarray
+    fs: float
+    name: str
+    kind: Literal["local", "synthetic"]
+
+
 @st.cache_resource
 def load_model():
     path = ROOT / "data/models/ecg_arrhythmia_classifier.keras"
-    if not path.exists():
-        return None
-    try:
-        return ArrhythmiaClassifier(str(path))
-    except Exception:
-        return None
+    return ArrhythmiaClassifier.load_model(path) if path.exists() else None
 
 
 def load_csv_ecg(file):
@@ -83,8 +87,9 @@ def load_csv_ecg(file):
 
 
 @st.cache_data
-def generate_synthetic_ecg(duration=10, fs=360):
+def generate_synthetic_ecg(duration: int):
     """Deterministic illustrative waveform, not patient data."""
+    fs = 360
     values = np.zeros(int(duration * fs))
     for time in np.arange(0, duration, 0.8):
         i = int(time * fs)
@@ -96,14 +101,15 @@ def generate_synthetic_ecg(duration=10, fs=360):
     return values + np.random.default_rng(42).normal(0, 0.05, len(values))
 
 
-def analyze_ecg(signal, fs, model, apply_notch=True, notch_freq=60):
-    filtered = preprocess_ecg(signal, fs, apply_notch=apply_notch, notch_freq=notch_freq)
+def analyze_ecg(study: Study, model: ArrhythmiaClassifier | None, notch_freq: int | None):
+    signal, fs = study.signal, study.fs
+    filtered = preprocess_ecg(signal, fs, notch_freq=notch_freq)
     peaks = detect_r_peaks(filtered, fs)
     mean_hr, heart_rates = calculate_heart_rate(peaks, fs)
     rr = calculate_rr_intervals(peaks, fs)
     frequencies, magnitudes = compute_frequency_spectrum(filtered, fs)
     predictions = []
-    if model is not None and model.ready and fs == 360 and apply_notch and notch_freq == 60:
+    if model is not None and fs == 360 and notch_freq == 60:
         for peak in peaks[:10]:
             beat = extract_beat(filtered, peak)
             if beat is not None:
@@ -119,7 +125,6 @@ def analyze_ecg(signal, fs, model, apply_notch=True, notch_freq=60):
     return {
         "original": signal,
         "filtered": filtered,
-        "normalized": normalize_signal(filtered),
         "peaks": peaks,
         "mean_hr": mean_hr,
         "heart_rates": heart_rates,
@@ -128,7 +133,6 @@ def analyze_ecg(signal, fs, model, apply_notch=True, notch_freq=60):
         "hrv_freq": calculate_hrv_frequency_domain(rr),
         "freqs": frequencies,
         "mags": magnitudes,
-        "features": extract_all_features(filtered, rr, fs),
         "predictions": predictions,
     }
 
@@ -167,7 +171,10 @@ def display_plot(figure, height=340):
     st.plotly_chart(
         style_plot(figure, height),
         width="stretch",
-        config={"displaylogo": False, "modeBarButtonsToRemove": ["lasso2d", "select2d"]},
+        config={
+            "displaylogo": False,
+            "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+        },
     )
 
 
@@ -182,47 +189,62 @@ def main():
             unsafe_allow_html=True,
         )
         data_source = st.radio(
-            "Signal source", ["Upload File", "Use Demo Data", "Generate Synthetic"], index=2
+            "Signal source",
+            ["Upload File", "Use Demo Data", "Generate Synthetic"],
+            index=2,
         )
-        signal = None
-        fs = 360.0
-        name = ""
-        synthetic = False
-        if data_source == "Upload File":
-            uploaded = st.file_uploader(
-                "ECG file",
-                type=["csv"],
-                help="CSV with numeric samples and a header. An optional time column should use seconds.",
-            )
-            if uploaded:
-                try:
-                    signal, fs = load_csv_ecg(uploaded)
-                    name = uploaded.name
-                except Exception as error:
-                    st.error(f"Could not read the signal: {error}")
-            else:
-                st.caption(
-                    "Choose a CSV with a numeric signal column. No patient data is needed for a demonstration."
+        study = None
+        match data_source:
+            case "Upload File":
+                uploaded = st.file_uploader(
+                    "ECG file",
+                    type=["csv"],
+                    help="CSV with numeric samples and a header. An optional time column should use seconds.",
                 )
-        elif data_source == "Use Demo Data":
-            try:
-                record = wfdb.rdrecord(str(ROOT / "data/mit-bih/100"))
-                fs = float(record.fs)
-                signal = record.p_signal[: int(30 * fs), 0]
-                name = "MIT-BIH · record 100"
-            except Exception:
-                signal = generate_synthetic_ecg(10)
-                name = "Synthetic fallback · 10 seconds"
-                synthetic = True
-                st.caption(
-                    "Local record 100 is unavailable. Showing a clearly labeled synthetic waveform."
+                if uploaded is not None:
+                    try:
+                        values, fs = load_csv_ecg(uploaded)
+                        study = Study(values, fs, uploaded.name, "local")
+                    except (ValueError, pd.errors.ParserError) as error:
+                        st.error(f"Could not read the signal: {error}")
+                else:
+                    st.caption(
+                        "Choose a CSV with a numeric signal column. No patient data is needed for a demonstration."
+                    )
+            case "Use Demo Data":
+                path = ROOT / "data/mit-bih/100"
+                if path.with_suffix(".hea").exists():
+                    record = wfdb.rdrecord(str(path))
+                    fs = float(record.fs)
+                    study = Study(
+                        record.p_signal[: int(30 * fs), 0],
+                        fs,
+                        "MIT-BIH · record 100",
+                        "local",
+                    )
+                else:
+                    study = Study(
+                        generate_synthetic_ecg(10),
+                        360,
+                        "Synthetic fallback · 10 seconds",
+                        "synthetic",
+                    )
+                    st.caption(
+                        "Local record 100 is unavailable. Showing a clearly labeled synthetic waveform."
+                    )
+            case "Generate Synthetic":
+                duration = st.slider("Duration (seconds)", 5, 30, 10)
+                study = Study(
+                    generate_synthetic_ecg(duration),
+                    360,
+                    f"Synthetic study · {duration} seconds",
+                    "synthetic",
                 )
-        else:
-            duration = st.slider("Duration (seconds)", 5, 30, 10)
-            signal = generate_synthetic_ecg(duration)
-            name = f"Synthetic study · {duration} seconds"
-            synthetic = True
-            st.caption("An illustrative ECG-like waveform. Generated locally, with a fixed seed.")
+                st.caption(
+                    "An illustrative ECG-like waveform. Generated locally, with a fixed seed."
+                )
+            case _:
+                raise AssertionError(f"Unknown signal source: {data_source}")
         st.divider()
         st.markdown('<span class="control-label">FILTERING</span>', unsafe_allow_html=True)
         apply_notch = st.checkbox("Apply notch filter", value=True)
@@ -230,7 +252,7 @@ def main():
             "Powerline frequency (Hz)", [50, 60], index=1, disabled=not apply_notch
         )
         st.caption("Baseline removal + 0.5–40 Hz bandpass. Optional powerline rejection.")
-        run = st.button("Run analysis", type="primary", width="stretch", disabled=signal is None)
+        run = st.button("Run analysis", type="primary", width="stretch", disabled=study is None)
         st.markdown(
             '<div class="sidebar-foot">ECG EXPLORATION<br />Not for medical decisions.</div>',
             unsafe_allow_html=True,
@@ -240,23 +262,30 @@ def main():
         """<section class="bio-hero"><div><p>ECG EXPLORATION WORKSPACE</p><h1>The shape of<br />a heartbeat<span class="bio-dot">.</span></h1></div><div class="bio-hero-note"><span>UNDERSTAND THE SIGNAL</span><p>From a waveform<br />to a clearer picture.</p><small>Inspect the trace, isolate the rhythm,<br />and explore its time and frequency features.</small></div></section>""",
         unsafe_allow_html=True,
     )
-    if signal is None:
+    if study is None:
         st.info("Load a CSV or choose a synthetic study in the lab controls to begin.")
         return
-    signature = hashlib.sha256(signal.tobytes()).hexdigest() + str((fs, apply_notch, notch_freq))
-    if st.session_state.get("signature") != signature:
-        st.session_state.pop("analysis", None)
-    model = load_model()
+    signal, fs, name = study.signal, study.fs, study.name
+    match study.kind:
+        case "synthetic":
+            synthetic = True
+        case "local":
+            synthetic = False
+        case _:
+            raise AssertionError(f"Unknown study kind: {study.kind}")
+    notch = notch_freq if apply_notch else None
+    signature = hashlib.sha256(signal.tobytes()).hexdigest() + str((fs, notch))
+    saved = st.session_state.get("analysis")
+    if saved is not None and saved["signature"] != signature:
+        del st.session_state["analysis"]
     if run:
-        try:
-            with st.spinner("Processing the signal…"):
-                st.session_state["analysis"] = analyze_ecg(
-                    signal, fs, model, apply_notch, notch_freq
-                )
-                st.session_state["signature"] = signature
-        except Exception as error:
-            st.error(f"Analysis could not be completed: {error}")
-    results = st.session_state.get("analysis")
+        with st.spinner("Processing the signal…"):
+            st.session_state["analysis"] = {
+                "signature": signature,
+                "result": analyze_ecg(study, load_model(), notch),
+            }
+    saved = st.session_state.get("analysis")
+    results = saved["result"] if saved is not None else None
     st.markdown(
         f'<div class="study-bar"><span><i></i> {html.escape(name)}</span><span>{"SYNTHETIC / ILLUSTRATIVE" if synthetic else "LOCAL FILE / EXPLORATORY"}</span></div>',
         unsafe_allow_html=True,
@@ -272,7 +301,7 @@ def main():
         ),
         (
             "Mean heart rate" if results else "Study mode",
-            f"{results['mean_hr']:.1f}" if results else ("Synthetic" if synthetic else "Local"),
+            (f"{results['mean_hr']:.1f}" if results else ("Synthetic" if synthetic else "Local")),
             "BPM" if results else "INPUT SOURCE",
         ),
     ]
@@ -295,7 +324,10 @@ def main():
     else:
         tabs = st.tabs(["Waveform", "Heart rate", "HRV", "Spectrum", "Beat classification"])
         with tabs[0]:
-            display_plot(plot_ecg_signal(results["filtered"], fs, results["peaks"], title=""), 360)
+            display_plot(
+                plot_ecg_signal(results["filtered"], fs, results["peaks"], title=""),
+                360,
+            )
             st.caption(
                 "Filtered signal with detected R-peaks. Peak positions are exploratory estimates, not clinical annotations."
             )
@@ -353,7 +385,8 @@ def main():
                         f"Beat at sample {prediction['beat']} · {prediction['class']}"
                     ):
                         display_plot(
-                            plot_prediction_probabilities(prediction["probabilities"]), 280
+                            plot_prediction_probabilities(prediction["probabilities"]),
+                            280,
                         )
             else:
                 st.info(
@@ -367,7 +400,10 @@ def main():
                 {"Metric": "mean_heart_rate_bpm", "Value": results["mean_hr"]},
                 *[
                     {"Metric": key, "Value": value}
-                    for key, value in {**results["hrv_time"], **results["hrv_freq"]}.items()
+                    for key, value in {
+                        **results["hrv_time"],
+                        **results["hrv_freq"],
+                    }.items()
                 ],
             ]
         )

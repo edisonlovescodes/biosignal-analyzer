@@ -10,15 +10,22 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.signal_processing.filters import (
-    bandpass_filter, notch_filter, remove_baseline_wander,
-    preprocess_ecg, normalize_signal
+    bandpass_filter,
+    notch_filter,
+    remove_baseline_wander,
+    preprocess_ecg,
+    normalize_signal,
 )
 from src.signal_processing.peak_detection import (
-    detect_r_peaks, calculate_rr_intervals, calculate_heart_rate
+    detect_r_peaks,
+    calculate_rr_intervals,
+    calculate_heart_rate,
 )
 from src.signal_processing.features import (
-    calculate_hrv_time_domain, calculate_hrv_frequency_domain,
-    compute_frequency_spectrum, extract_statistical_features
+    calculate_hrv_time_domain,
+    calculate_hrv_frequency_domain,
+    compute_frequency_spectrum,
+    extract_statistical_features,
 )
 
 
@@ -63,7 +70,7 @@ class TestFilters:
         t = np.linspace(0, 10, fs * 10)
         signal = np.random.randn(len(t))
 
-        processed = preprocess_ecg(signal, fs)
+        processed = preprocess_ecg(signal, fs, notch_freq=60)
 
         assert len(processed) == len(signal)
         assert isinstance(processed, np.ndarray)
@@ -89,10 +96,10 @@ class TestPeakDetection:
         t = np.linspace(0, duration, fs * duration)
 
         signal = np.zeros_like(t)
-        for beat_time in np.arange(0, duration, 60/hr):
+        for beat_time in np.arange(0, duration, 60 / hr):
             beat_idx = int(beat_time * fs)
             if beat_idx < len(signal) - 50:
-                signal[beat_idx:beat_idx+20] += np.exp(-np.linspace(0, 3, 20))
+                signal[beat_idx : beat_idx + 20] += np.exp(-np.linspace(0, 3, 20))
 
         peaks = detect_r_peaks(signal, fs)
 
@@ -134,26 +141,26 @@ class TestFeatures:
 
         hrv = calculate_hrv_time_domain(rr_intervals)
 
-        assert 'mean_rr' in hrv
-        assert 'sdnn' in hrv
-        assert 'rmssd' in hrv
-        assert 'pnn50' in hrv
+        assert "mean_rr" in hrv
+        assert "sdnn" in hrv
+        assert "rmssd" in hrv
+        assert "pnn50" in hrv
 
-        assert hrv['mean_rr'] > 0
-        assert hrv['sdnn'] >= 0
-        assert hrv['rmssd'] >= 0
-        assert 0 <= hrv['pnn50'] <= 100
+        assert hrv["mean_rr"] > 0
+        assert hrv["sdnn"] >= 0
+        assert hrv["rmssd"] >= 0
+        assert 0 <= hrv["pnn50"] <= 100
 
     def test_calculate_hrv_frequency_domain(self):
         # Create varying RR intervals
-        rr_intervals = 1000 + 50 * np.sin(np.linspace(0, 4*np.pi, 100))
+        rr_intervals = 1000 + 50 * np.sin(np.linspace(0, 4 * np.pi, 100))
 
         hrv_freq = calculate_hrv_frequency_domain(rr_intervals)
 
-        assert 'vlf_power' in hrv_freq
-        assert 'lf_power' in hrv_freq
-        assert 'hf_power' in hrv_freq
-        assert 'lf_hf_ratio' in hrv_freq
+        assert "vlf_power" in hrv_freq
+        assert "lf_power" in hrv_freq
+        assert "hf_power" in hrv_freq
+        assert "lf_hf_ratio" in hrv_freq
 
         assert all(v >= 0 for v in hrv_freq.values())
 
@@ -177,15 +184,15 @@ class TestFeatures:
 
         features = extract_statistical_features(signal)
 
-        assert 'mean' in features
-        assert 'std' in features
-        assert 'min' in features
-        assert 'max' in features
-        assert 'median' in features
-        assert 'skewness' in features
-        assert 'kurtosis' in features
+        assert "mean" in features
+        assert "std" in features
+        assert "min" in features
+        assert "max" in features
+        assert "median" in features
+        assert "skewness" in features
+        assert "kurtosis" in features
 
-        assert features['min'] <= features['median'] <= features['max']
+        assert features["min"] <= features["median"] <= features["max"]
 
 
 class TestEdgeCases:

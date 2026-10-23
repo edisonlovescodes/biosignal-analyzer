@@ -2,7 +2,6 @@
 
 from contextlib import asynccontextmanager
 from io import StringIO
-import logging
 import os
 from pathlib import Path
 from threading import Lock
@@ -16,12 +15,14 @@ from src.signal_processing.peak_detection import (
     calculate_heart_rate,
     calculate_rr_intervals,
 )
-from src.signal_processing.features import calculate_hrv_time_domain, calculate_hrv_frequency_domain
+from src.signal_processing.features import (
+    calculate_hrv_time_domain,
+    calculate_hrv_frequency_domain,
+)
 from src.models.cnn_model import ArrhythmiaClassifier
 from src.models.contract import extract_beat
 
 ROOT = Path(__file__).resolve().parents[1]
-LOGGER = logging.getLogger(__name__)
 MAX_BYTES = 4 * 1024 * 1024
 
 
@@ -52,23 +53,16 @@ def read_signal(file):
         ) from None
 
 
-def create_app(model_path=None):
-    path = Path(
-        model_path
-        or os.getenv("BIOSIGNAL_MODEL_PATH", ROOT / "data/models/ecg_arrhythmia_classifier.keras")
-    )
+def create_app(path: Path):
     lock = Lock()
 
     @asynccontextmanager
     async def lifespan(app):
-        app.state.classifier = None
-        if path.exists():
-            try:
-                app.state.classifier = ArrhythmiaClassifier(str(path))
-            except Exception:
-                LOGGER.exception("Incompatible model; signal exploration remains available")
-        yield
-        app.state.classifier = None
+        app.state.classifier = ArrhythmiaClassifier.load_model(path) if path.exists() else None
+        try:
+            yield
+        finally:
+            app.state.classifier = None
 
     app = FastAPI(title="BioSignal Analyzer API", version="1.1.0", lifespan=lifespan)
     app.add_middleware(
@@ -104,7 +98,7 @@ def create_app(model_path=None):
         values = read_signal(file)
         if len(values) < 64:
             raise HTTPException(400, "Need at least 64 samples for filtering")
-        filtered = preprocess_ecg(values, sampling_rate)
+        filtered = preprocess_ecg(values, sampling_rate, notch_freq=60)
         peaks = detect_r_peaks(filtered, sampling_rate)
         mean_hr, _ = calculate_heart_rate(peaks, sampling_rate)
         rr = calculate_rr_intervals(peaks, sampling_rate)
@@ -152,7 +146,8 @@ def create_app(model_path=None):
         classifier = app.state.classifier
         if classifier is None:
             raise HTTPException(
-                503, "Compatible trained model unavailable; signal analysis is still available"
+                503,
+                "Compatible trained model unavailable; signal analysis is still available",
             )
         if sampling_rate != 360 or not prefiltered:
             raise HTTPException(
@@ -183,4 +178,6 @@ def create_app(model_path=None):
     return app
 
 
-app = create_app()
+app = create_app(
+    Path(os.getenv("BIOSIGNAL_MODEL_PATH", ROOT / "data/models/ecg_arrhythmia_classifier.keras"))
+)

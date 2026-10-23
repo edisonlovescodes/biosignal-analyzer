@@ -10,7 +10,7 @@ import wfdb
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import GroupShuffleSplit
 from tensorflow.keras.utils import to_categorical
-from .cnn_model import build_ecg_cnn, build_residual_cnn
+from .cnn_model import build_ecg_cnn
 from .contract import (
     ANNOTATION_MAP,
     CLASS_NAMES,
@@ -22,7 +22,7 @@ from .contract import (
 )
 
 
-def load_mitbih_record(record_path, segment_length=187):
+def load_mitbih_record(record_path):
     record = wfdb.rdrecord(str(record_path))
     values = filter_record(record.p_signal[:, 0], record.fs)
     annotation = wfdb.rdann(str(record_path), "atr")
@@ -31,17 +31,16 @@ def load_mitbih_record(record_path, segment_length=187):
     for loc, symbol in zip(annotation.sample, annotation.symbol):
         if symbol not in ANNOTATION_MAP:
             continue
-        segment = extract_beat(values, loc, segment_length)
+        segment = extract_beat(values, loc)
         if segment is not None:
             segments.append(segment)
             labels.append(ANNOTATION_MAP[symbol])
     return segments, labels
 
 
-def load_mitbih_dataset(data_dir, records=None, return_groups=False):
-    records = records or sorted(p.stem for p in Path(data_dir).glob("*.hea"))
-    if not records:
-        raise ValueError("No local WFDB records found")
+def load_mitbih_dataset(data_dir):
+    records = sorted(p.stem for p in Path(data_dir).glob("*.hea"))
+    assert records, "No local WFDB records found"
     segments = []
     labels = []
     groups = []
@@ -50,10 +49,8 @@ def load_mitbih_dataset(data_dir, records=None, return_groups=False):
         segments.extend(x)
         labels.extend(y)
         groups.extend([subject_id(record)] * len(x))
-    if not segments:
-        raise ValueError("No complete annotated beats extracted")
-    result = (np.asarray(segments), np.asarray(labels))
-    return (*result, np.asarray(groups)) if return_groups else result
+    assert segments, "No complete annotated beats extracted"
+    return np.asarray(segments), np.asarray(labels), np.asarray(groups)
 
 
 def split_subjects(groups, seed=42):
@@ -73,19 +70,15 @@ def split_subjects(groups, seed=42):
     return {"train": train_val[tr], "validation": train_val[val], "test": test}
 
 
-def train_ecg_model(
-    data_dir, save_path="data/models/ecg_arrhythmia_classifier.keras", model_type="cnn", epochs=10
-):
-    if model_type not in {"cnn", "residual"} or not 1 <= epochs <= 100:
-        raise ValueError("Invalid training configuration")
+def train_ecg_model(data_dir: Path, save_path: Path, epochs: int):
+    assert 1 <= epochs <= 100, "Invalid epoch count"
     tf.keras.utils.set_random_seed(42)
-    X, y, groups = load_mitbih_dataset(data_dir, return_groups=True)
+    X, y, groups = load_mitbih_dataset(data_dir)
     splits = split_subjects(groups)
     labels = np.array([CLASS_NAMES.index(label) for label in y])
     X = X[..., None]
     onehot = to_categorical(labels, num_classes=len(CLASS_NAMES))
-    build = build_ecg_cnn if model_type == "cnn" else build_residual_cnn
-    model = build(input_shape=(187, 1), num_classes=len(CLASS_NAMES))
+    model = build_ecg_cnn()
     tr = splits["train"]
     val = splits["validation"]
     test = splits["test"]
@@ -141,10 +134,12 @@ def train_ecg_model(
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=Path, required=True)
-    parser.add_argument("--output", default="data/models/ecg_arrhythmia_classifier.keras")
+    parser.add_argument(
+        "--output", type=Path, default="data/models/ecg_arrhythmia_classifier.keras"
+    )
     parser.add_argument("--epochs", type=int, default=10)
     args = parser.parse_args()
-    train_ecg_model(args.data, args.output, epochs=args.epochs)
+    train_ecg_model(args.data, args.output, args.epochs)
 
 
 if __name__ == "__main__":

@@ -78,37 +78,12 @@ def remove_baseline_wander(data: np.ndarray, fs: float, cutoff: float = 0.5) -> 
     return filtered
 
 
-def preprocess_ecg(
-    data: np.ndarray, fs: float, apply_notch: bool = True, notch_freq: float = 60.0
-) -> np.ndarray:
-    """
-    Complete ECG preprocessing pipeline.
-
-    Applies:
-    1. Baseline wander removal
-    2. Bandpass filter (0.5-40 Hz for ECG)
-    3. Notch filter for powerline interference (optional)
-
-    Args:
-        data: Raw ECG signal
-        fs: Sampling frequency (Hz)
-        apply_notch: Whether to apply notch filter
-        notch_freq: Powerline frequency (50 or 60 Hz)
-
-    Returns:
-        Preprocessed ECG signal
-    """
-    # Remove baseline wander
-    signal_clean = remove_baseline_wander(data, fs)
-
-    # Bandpass filter
-    signal_clean = bandpass_filter(signal_clean, 0.5, 40.0, fs)
-
-    # Notch filter for powerline interference
-    if apply_notch:
-        signal_clean = notch_filter(signal_clean, notch_freq, fs)
-
-    return signal_clean
+def preprocess_ecg(data: np.ndarray, fs: float, *, notch_freq: float | None) -> np.ndarray:
+    """Remove baseline, bandpass 0.5–40 Hz, then optionally reject one mains frequency."""
+    filtered = bandpass_filter(remove_baseline_wander(data, fs), 0.5, 40, fs)
+    if notch_freq is None:
+        return filtered
+    return notch_filter(filtered, notch_freq, fs)
 
 
 def normalize_signal(data: np.ndarray) -> np.ndarray:

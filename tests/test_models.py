@@ -51,13 +51,17 @@ class TestArrhythmiaClassifier:
     """Test ArrhythmiaClassifier class."""
 
     def test_classifier_initialization(self):
-        classifier = ArrhythmiaClassifier(allow_untrained=True)
+        classifier = ArrhythmiaClassifier(
+            build_ecg_cnn(), {"trained": False, "data_kind": "synthetic"}
+        )
 
         assert classifier.model is not None
         assert len(classifier.CLASS_NAMES) == 5
 
     def test_prediction(self):
-        classifier = ArrhythmiaClassifier(allow_untrained=True)
+        classifier = ArrhythmiaClassifier(
+            build_ecg_cnn(), {"trained": False, "data_kind": "synthetic"}
+        )
 
         # Create random ECG segment
         ecg_segment = np.random.randn(187)
@@ -71,7 +75,9 @@ class TestArrhythmiaClassifier:
         assert abs(sum(probs.values()) - 1.0) < 1e-5  # Probabilities sum to 1
 
     def test_batch_prediction(self):
-        classifier = ArrhythmiaClassifier(allow_untrained=True)
+        classifier = ArrhythmiaClassifier(
+            build_ecg_cnn(), {"trained": False, "data_kind": "synthetic"}
+        )
 
         # Create batch of segments
         batch = np.random.randn(10, 187, 1)
@@ -83,7 +89,9 @@ class TestArrhythmiaClassifier:
         assert all(abs(row.sum() - 1.0) < 1e-5 for row in predictions)
 
     def test_prediction_with_2d_input(self):
-        classifier = ArrhythmiaClassifier(allow_untrained=True)
+        classifier = ArrhythmiaClassifier(
+            build_ecg_cnn(), {"trained": False, "data_kind": "synthetic"}
+        )
 
         # Input should be auto-reshaped
         ecg_segment = np.random.randn(187)
@@ -105,7 +113,9 @@ class TestModelTraining:
         assert model.loss is not None
 
     def test_training_step(self):
-        classifier = ArrhythmiaClassifier(allow_untrained=True)
+        classifier = ArrhythmiaClassifier(
+            build_ecg_cnn(), {"trained": False, "data_kind": "synthetic"}
+        )
 
         # Create dummy data
         X_train = np.random.randn(50, 187, 1)
@@ -115,7 +125,9 @@ class TestModelTraining:
         y_val = tf.keras.utils.to_categorical(np.random.randint(0, 5, 10), 5)
 
         # Train for 1 epoch
-        history = classifier.train(X_train, y_train, X_val, y_val, epochs=1, batch_size=10)
+        history = classifier.model.fit(
+            X_train, y_train, validation_data=(X_val, y_val), epochs=1, batch_size=10
+        )
 
         assert history is not None
         assert "loss" in history.history
@@ -127,14 +139,18 @@ class TestModelSaveLoad:
 
     def test_save_and_load(self, tmp_path):
         # Create and save model
-        classifier = ArrhythmiaClassifier(allow_untrained=True)
+        classifier = ArrhythmiaClassifier(
+            build_ecg_cnn(), {"trained": False, "data_kind": "synthetic"}
+        )
         model_path = tmp_path / "test_model.h5"
 
-        classifier.save_model(str(model_path))
+        classifier.model.save(model_path)
         assert model_path.exists()
 
         # Load model
-        loaded_classifier = ArrhythmiaClassifier(model_path=str(model_path), allow_untrained=True)
+        loaded_classifier = ArrhythmiaClassifier(
+            tf.keras.models.load_model(model_path, compile=False), classifier.metadata
+        )
 
         # Compare predictions
         ecg_segment = np.random.randn(187)
@@ -150,16 +166,20 @@ class TestInputValidation:
     """Test input validation and error handling."""
 
     def test_wrong_input_shape(self):
-        classifier = ArrhythmiaClassifier(allow_untrained=True)
+        classifier = ArrhythmiaClassifier(
+            build_ecg_cnn(), {"trained": False, "data_kind": "synthetic"}
+        )
 
         # Too short
-        with pytest.raises((ValueError, Exception)):
+        with pytest.raises(AssertionError):
             classifier.predict(np.random.randn(50))
 
     def test_empty_input(self):
-        classifier = ArrhythmiaClassifier(allow_untrained=True)
+        classifier = ArrhythmiaClassifier(
+            build_ecg_cnn(), {"trained": False, "data_kind": "synthetic"}
+        )
 
-        with pytest.raises((ValueError, Exception)):
+        with pytest.raises(AssertionError):
             classifier.predict(np.array([]))
 
 

@@ -71,10 +71,8 @@ def test_hrv_power_uses_frequency_spacing():
 
 
 def test_default_classifier_cannot_predict_random_weights():
-    classifier = ArrhythmiaClassifier()
-    assert classifier.model is None
-    with pytest.raises(RuntimeError):
-        classifier.predict(np.ones(187))
+    with pytest.raises(TypeError):
+        ArrhythmiaClassifier()
 
 
 def csv(values):
@@ -99,3 +97,35 @@ def test_api_without_model_can_explore_but_cannot_classify(tmp_path):
             assert (
                 c.post("/analyze", files={"file": ("bad.csv", data, "text/csv")}).status_code == 400
             )
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("protocol", "unknown"),
+        ("class_names", list(reversed(CLASS_NAMES))),
+        ("model_sha256", "wrong"),
+        ("trained", False),
+        ("data_kind", "synthetic"),
+    ],
+)
+def test_incompatible_artifacts_fail_at_startup(tmp_path, field, value):
+    import hashlib
+    import json
+    from src.models.contract import PREPROCESSING, PROTOCOL
+
+    path = tmp_path / "model.keras"
+    path.write_bytes(b"fixture, not a trained artifact")
+    metadata = {
+        "protocol": PROTOCOL,
+        "preprocessing": PREPROCESSING,
+        "class_names": CLASS_NAMES,
+        "model_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "trained": True,
+        "data_kind": "public",
+    }
+    metadata[field] = value
+    path.with_suffix(".json").write_text(json.dumps(metadata))
+    with pytest.raises(AssertionError):
+        with TestClient(create_app(path)):
+            pass
