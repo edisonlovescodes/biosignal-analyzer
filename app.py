@@ -1,8 +1,10 @@
 """A waveform-first ECG exploration workspace. No synthetic classifier output."""
 
+from __future__ import annotations
+
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 import hashlib
 import html
 
@@ -11,7 +13,8 @@ import pandas as pd
 import streamlit as st
 import wfdb
 
-from src.models.cnn_model import ArrhythmiaClassifier
+if TYPE_CHECKING:
+    from src.models.cnn_model import ArrhythmiaClassifier
 from src.models.contract import extract_beat
 from src.signal_processing.filters import preprocess_ecg
 from src.signal_processing.peak_detection import (
@@ -58,7 +61,11 @@ class Study:
 @st.cache_resource
 def load_model():
     path = ROOT / "data/models/ecg_arrhythmia_classifier.keras"
-    return ArrhythmiaClassifier.load_model(path) if path.exists() else None
+    if not path.exists():
+        return None
+    from src.models.cnn_model import ArrhythmiaClassifier  # TensorFlow is slow to import
+
+    return ArrhythmiaClassifier.load_model(path)
 
 
 def load_csv_ecg(file):
@@ -185,13 +192,13 @@ def main():
     )
     with st.sidebar:
         st.markdown(
-            '<div class="sidebar-title"><span>LAB CONTROLS</span><h2>Shape the study.</h2></div>',
+            '<div class="sidebar-title"><span>LAB CONTROLS</span><h2>1. Choose a signal</h2></div>',
             unsafe_allow_html=True,
         )
         data_source = st.radio(
             "Signal source",
-            ["Upload File", "Use Demo Data", "Generate Synthetic"],
-            index=2,
+            ["Use Demo Data", "Generate Synthetic", "Upload File"],
+            index=0,
         )
         study = None
         match data_source:
@@ -259,7 +266,7 @@ def main():
         )
 
     st.markdown(
-        """<section class="bio-hero"><div><p>ECG EXPLORATION WORKSPACE</p><h1>The shape of<br />a heartbeat<span class="bio-dot">.</span></h1></div><div class="bio-hero-note"><span>UNDERSTAND THE SIGNAL</span><p>From a waveform<br />to a clearer picture.</p><small>Inspect the trace, isolate the rhythm,<br />and explore its time and frequency features.</small></div></section>""",
+        """<section class="bio-hero"><div><p>BIOSIGNAL · ECG (HEART SIGNAL) ANALYZER</p><h1>Heart rate from<br />a raw ECG<span class="bio-dot">.</span></h1></div><div class="bio-hero-note"><span>WHAT THIS DOES</span><p>Cleans a heart recording and finds every beat.</p><small>How to use: 1. In the left panel, choose demo data (a real public recording), a synthetic signal, or upload a CSV. 2. Click Run analysis. 3. Use the tabs to see heart rate, heart-rate variability and frequencies.</small></div></section>""",
         unsafe_allow_html=True,
     )
     if study is None:
@@ -414,7 +421,7 @@ def main():
             "text/csv",
         )
     st.markdown(
-        """<div class="bio-bottom"><div><span>READ THE TRACE</span><h2>A signal worth<br />understanding.</h2></div><p>This workspace brings filtering, peak detection, and heart-rate variability into one view. Start with a synthetic study, then explore a local recording.<br /><br />Beat classification is a separate, optional step that requires a compatible trained model.</p></div>""",
+        """<div class="bio-bottom"><div><span>HOW IT WORKS</span><h2>Filter, find beats,<br />measure.</h2></div><p>An ECG is the heart&#39;s electrical signal. The app removes slow drift and power-line hum, finds each heartbeat peak (the R-peak), and measures the time between beats to get heart rate and heart-rate variability.<br /><br />The demo recording is MIT-BIH record 100 from PhysioNet (ODC-BY). Beat classification is not available yet: it needs a trained model. Not for medical decisions.</p></div>""",
         unsafe_allow_html=True,
     )
     st.markdown(
